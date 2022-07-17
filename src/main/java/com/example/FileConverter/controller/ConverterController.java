@@ -1,14 +1,16 @@
 package com.example.FileConverter.controller;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Map;
 
 import com.example.FileConverter.odt.GetFileDto;
 import com.example.FileConverter.service.ConvertExcelToCSVService;
 
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,52 +22,40 @@ public class ConverterController {
     @Autowired
     ConvertExcelToCSVService convertExcelToCSV;
 
-    @Autowired
-    private ModelMapper modelMapper;
-
-    @PostMapping(value = "/file",
- //           consumes = "multipart/form-data",
-            produces = "application/zip")
+    @PostMapping(value = "/json")
     public void parseURL(@RequestBody GetFileDto getfiledto, HttpServletResponse response) throws Exception {
 
-        try {
-            byte[] Zip = convertExcelToCSV.convertExcelToCSV(Map.of(), getfiledto); //  размер файла lenght и рар
-
-            try (OutputStream os = response.getOutputStream()) {
-                os.write(Zip, 0, Zip.length);
-                response.setContentType("application/zip");
-                response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=test.zip");
-            } catch (Exception e) {
-                System.out.println("Не удалось вернуть файл!");
-            }
-        }
-        //catch (WrongFileFormatException | CorruptedFileException e)
-        catch (Exception e) {
-            System.out.println("Не удалось создать файл!");
-        }
+            byte[] zip = convertExcelToCSV.convertExcelToCSV(Map.of(), getfiledto); //  размер файла lenght и рар
+            OutputStream os = response.getOutputStream();
+            os.write(zip, 0, zip.length);
+            response.setContentType("application/zip");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=output.zip");
+            response.setContentLength(zip.length);
+            os.close();
     }
 
-    @PostMapping(value = "/file1",
-            produces = "application/zip")
+
+    @PostMapping(value = "/multipart")
     public void parseMultipartFile(@RequestParam Map<String, String> params,
                                                      @RequestBody MultipartFile multipartFile,
                                                      HttpServletResponse response) throws Exception {
-        try {
-            byte[] Zip = convertExcelToCSV.convertExcelToCSV(params, multipartFile); //  размер файла lenght и рар
-            try (OutputStream os = response.getOutputStream()) {
-                os.write(Zip, 0, Zip.length);
-                os.close();
-                response.setContentType("application/zip");
-                response.setHeader(HttpHeaders.CONTENT_DISPOSITION,"attachment; filename=test.zip");
-                response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(Zip.length));
-            } catch (Exception e) {
-                System.out.println("Не удалось вернуть файл!");
-            }
+            byte[] zip = convertExcelToCSV.convertExcelToCSV(params, multipartFile); //  размер файла lenght и рар
+            OutputStream os = response.getOutputStream();
+            os.write(zip, 0, zip.length);
+            response.setContentType("application/zip");
+            response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=output.zip");
+            response.setContentLength(zip.length);
+            os.close();
+    }
 
-        }
-        //catch (WrongFileFormatException | CorruptedFileException e)
-        catch (Exception e) {
-            System.out.println("Не удалось создать файл!");//controlleradvice
-        }
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> exceptionHandler(RuntimeException e) {
+
+        return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<String> exceptionHandler(IOException e) {
+
+        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

@@ -12,13 +12,16 @@ import java.util.zip.ZipOutputStream;
 
 import com.example.FileConverter.exceptions.BadDtoException;
 import com.example.FileConverter.exceptions.BadLinkException;
+import com.example.FileConverter.exceptions.ParserException;
 import com.example.FileConverter.exceptions.WrongFileFormatException;
 import com.example.FileConverter.odt.GetFileDto;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.EnumUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 
@@ -45,89 +48,95 @@ import org.xml.sax.XMLReader;
 import javax.xml.parsers.ParserConfigurationException;
 
 
+import static org.apache.commons.lang3.StringUtils.split;
 import static org.apache.nifi.csv.CSVUtils.*;
 
 
 @Service
 public class ConvertExcelToCSVService {
 
+
     private static final String DESIRED_SHEETS_DELIMITER = ",";
 
 
     public byte[] convertExcelToCSV(Map<String, String> params, Object model)
-            throws IOException, IllegalArgumentException {
-
-
-        InputStream fis = null;
+            throws Exception {
+        String filename;
+        File fileDirectory = null;
+        File file = null;
+        InputStream fis=InputStream.nullInputStream();
         File targetFile = null;
+        FileOutputStream fos = null;
+        ZipOutputStream zipOut = null;
         try {
             String directory = String.valueOf(generateUniqueString().hashCode()); // уникальное название папки и файлов для каждого запроса
             GetFileDto getFileDto;
             if (model.getClass() == GetFileDto.class) {     //создаем файл из приянтого inputStream'а
                 getFileDto = (GetFileDto) model;
+                filename =getFileDto.getURL().toLowerCase()
+                        .substring(getFileDto.getURL().lastIndexOf("/") + 1)
+                        .split("\\.")[0];
                 fis = urlToInputStream(getFileDto.getURL());
 
-                targetFile = new File(directory+".xlsx");
-                FileUtils.copyInputStreamToFile(fis, targetFile);
-                fis.close();
             } else {
                 MultipartFile multipartFile = (MultipartFile) model;
+                filename = multipartFile.getOriginalFilename().split("\\.")[0];
                 fis =  new BufferedInputStream(multipartFile.getInputStream());
-
-                getFileDto = MapToDto (params);
-
-                targetFile = new File(directory+".xlsx");
-                FileUtils.copyInputStreamToFile(fis, targetFile);
-                fis.close();
+                getFileDto = MapToDto(params);
             }
+            targetFile = new File(filename+directory+".xlsx");
+            FileUtils.copyInputStreamToFile(fis, targetFile);
+            fis.close();
 
-            File fileDirectory = new File(directory); //создаем папку для хранения преобразованных csv файлов
-            if (!fileDirectory.exists()){
+            fileDirectory = new File(directory); //создаем папку для хранения преобразованных csv файлов
+            if (!fileDirectory.exists()) {
                 fileDirectory.mkdir();
             }
 
-            ConvertFileToExcel(getFileDto,directory); //Записываем в папку "directory" преобразованные листы ексель в csv формат
+            ConvertFileToExcel(getFileDto,filename,directory); //Записываем в папку "directory" преобразованные листы ексель в csv формат
 
+            fos = new FileOutputStream(filename+directory +".zip");
+            zipOut = new ZipOutputStream(fos);
 
-            FileOutputStream fos = new FileOutputStream(directory +".zip");
-            ZipOutputStream zipOut = new ZipOutputStream(fos);
-
-            CreateZipFile(fileDirectory, directory,zipOut); //записываем все файлы из папки в зип файл
+            createZipFile(fileDirectory, directory,zipOut); //записываем все файлы из папки в зип файл
 
             zipOut.close();
             fos.close();
 
-            FileUtils.deleteDirectory(fileDirectory); //удаляем папку c csv файлами
 
-
-            File file = new File(directory +".zip");
-            byte[] zipBytes = FileUtils.readFileToByteArray(file);
-            FileUtils.delete(file);                     //удаляем zip file
-            FileUtils.delete(targetFile);               //удаляем xlsx file
-            return zipBytes; // FIXME: 14.07.2022 Возвращаем файл в виде массива байтов (как оптимальнее?)
+            file = new File(filename+directory +".zip");
+            return FileUtils.readFileToByteArray(file); // FIXME: 14.07.2022 Возвращаем файл в виде массива байтов (как оптимальнее?)
 
         } catch (Exception e) {
-            System.out.println("Unexpected exception");
-            e.printStackTrace();
-            return null;       // FIXME: 14.07.2022 Ошибки пока не обрабатываются
-
+            throw e;
+        }
+        finally {
+            if (fos !=null) fos.close();
+            fis.close();
+            if (zipOut != null) {
+                zipOut.close();
+            }
+            if (fos != null) {
+                fos.close();
+            }
+            if (fileDirectory!= null) {FileUtils.deleteDirectory(fileDirectory);}//удаляем папку c csv файлами
+            if (file != null)  {FileUtils.delete(file); }                        //удаляем zip file
+            if (targetFile != null) {FileUtils.delete(targetFile); }             //удаляем xlsx file
         }
     }
 
 
 
-    private void ConvertFileToExcel(final GetFileDto GetFileDto, String filename) throws  Exception {
+    private void ConvertFileToExcel(final GetFileDto GetFileDto, String filename, String directory) throws  Exception {
 
 
         final String desiredSheetsDelimited = GetFileDto.getDESIRED_SHEETS();
         final boolean formatValues = GetFileDto.isFORMAT_VALUES();
 
         final CSVFormat csvFormat = createCSVFormat(GetFileDto);
-
         //Switch to 0 based index
-        final int firstRow = GetFileDto.getROWS_TO_SKIP() - 1 ;
-        final String[] sColumnsToSkip = StringUtils.split(GetFileDto.getCOLUMNS_TO_SKIP(), ",");
-
+        final int firstRow = GetFileDto.getROWS_TO_SKIP() - 1;
+        final String[] sColumnsToSkip = split(GetFileDto.getCOLUMNS_TO_SKIP(), ",");
         final List<Integer> columnsToSkip = new ArrayList<>();
 
         if (sColumnsToSkip != null && sColumnsToSkip.length > 0) {
@@ -136,14 +145,13 @@ public class ConvertExcelToCSVService {
                     //Switch to 0 based index
                     columnsToSkip.add(Integer.parseInt(c) - 1);
                 } catch (NumberFormatException e) {
-                    throw new Exception("Invalid column in Columns to Skip list.", e);
+                    throw new BadDtoException("Invalid column in Columns to Skip list.");
                 }
             }
         }
 
         try {
-
-            File initialFile = new File(filename+".xlsx");
+            File initialFile = new File(filename+directory+".xlsx");
             InputStream inputStream = new FileInputStream(initialFile);
 
             OPCPackage pkg = OPCPackage.open(inputStream);
@@ -153,7 +161,7 @@ public class ConvertExcelToCSVService {
             XSSFReader.SheetIterator iter = (XSSFReader.SheetIterator) r.getSheetsData();
 
             if (desiredSheetsDelimited != null) {
-                String[] desiredSheets = StringUtils.split(desiredSheetsDelimited,
+                String[] desiredSheets = split(desiredSheetsDelimited,
                         DESIRED_SHEETS_DELIMITER);
 
                 if (desiredSheets != null) {
@@ -168,14 +176,14 @@ public class ConvertExcelToCSVService {
                                         columnsToSkip, firstRow, sheetName, formatValues, sst, styles);
 
                                 handleExcelSheet(sheet, readConfig,
-                                        csvFormat, filename+"\\"+updateFilenameToCSVExtension(filename,sheetName));
+                                        csvFormat, directory+"\\"+updateFilenameToCSVExtension(filename,sheetName));
                                 break;
                             }
                         }
                         sheet.close();
                     }
                 } else {
-                    System.out.println("Excel document was parsed but no sheets with the specified desired names were found.");
+                    throw new BadDtoException("Excel document was parsed but no sheets with the specified desired names were found.");
                 }
 
             } else {
@@ -186,32 +194,27 @@ public class ConvertExcelToCSVService {
 
                     ExcelSheetReadConfig readConfig = new ExcelSheetReadConfig(columnsToSkip, firstRow,
                             sheetName, formatValues, sst, styles);
-                    File targetFile = new File(sheetName+".csv");
-                    OutputStream outStream = new FileOutputStream(targetFile);
+
                     handleExcelSheet( sheet, readConfig,
-                            csvFormat, filename+"\\"+updateFilenameToCSVExtension(filename,sheetName));
-                    outStream.close();
+                            csvFormat, directory+"\\"+updateFilenameToCSVExtension(filename,sheetName));
+                    sheet.close();
                 }
             }
             inputStream.close();
             pkg.close();
         } catch (InvalidFormatException ife) {
-            System.out.println("Only .xlsx Excel 2007 OOXML files are supported");
-            throw new UnsupportedOperationException("Only .xlsx Excel 2007 OOXML files are supported", ife);
+            throw new WrongFileFormatException("Only .xlsx Excel 2007 OOXML files are supported");
         } catch (OpenXML4JException | SAXException e) {
-            System.out.println("Error occurred while processing Excel document metadata");
+            throw new ParserException("Error occurred while processing Excel document metadata");
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }
-        finally {
-
         }
     }
 
 
     private void handleExcelSheet(final InputStream sheetInputStream, ExcelSheetReadConfig readConfig, CSVFormat csvFormat, String filename)
-            throws IOException {
-        try {
+            throws IOException, ParserException {
+        try (sheetInputStream) {
             final DataFormatter formatter = new DataFormatter();
             final InputSource sheetSource = new InputSource(sheetInputStream);
 
@@ -230,7 +233,7 @@ public class ConvertExcelToCSVService {
 
 
             File targetFile = new File(filename);
-            OutputStream out= new FileOutputStream(targetFile); // FIXME: 14.07.2022 не забыть проверить
+            OutputStream out = new FileOutputStream(targetFile);
             PrintStream outPrint = new PrintStream(out);
             sheetHandler.setOutput(outPrint);
 
@@ -242,17 +245,12 @@ public class ConvertExcelToCSVService {
                 outPrint.close();
                 out.close();
             } catch (SAXException se) {
-                System.out.println("Error occurred while processing Excel sheet {}" + readConfig.getSheetName());
+                throw new ParserException("Error occurred while processing Excel sheet {}" + readConfig.getSheetName());
             }
-
-
-
         } catch (SAXException | ParserConfigurationException saxE) {
-            System.out.println("Failed to create instance of Parser.");
+            throw new ParserException("Failed to create instance of Parser while proceed file.");
         } catch (Exception e) {
             throw new RuntimeException(e);
-        } finally {
-            sheetInputStream.close();
         }
     }
 
@@ -278,17 +276,17 @@ public class ConvertExcelToCSVService {
             return rowCount;
         }
 
-        public void setOutput(PrintStream output) throws Exception {
+        public void setOutput(PrintStream output) {
             final OutputStreamWriter streamWriter = new OutputStreamWriter(output);
 
             try {
                 printer = new CSVPrinter(streamWriter, csvFormat);
             } catch (IOException e) {
-                throw new Exception("Failed to create CSV Printer.", e);
+                throw new ParserException("Failed to create CSV Printer for file.");
             }
         }
 
-        public SheetToCSV(ExcelSheetReadConfig readConfig, CSVFormat csvFormat) {
+        private SheetToCSV(ExcelSheetReadConfig readConfig, CSVFormat csvFormat) {
             this.readConfig = readConfig;
             this.csvFormat = csvFormat;
         }
@@ -517,8 +515,8 @@ public class ConvertExcelToCSVService {
         }
     }
 
-    private CSVFormat createCSVFormat(GetFileDto dto) {
-        String formatName = dto.getCSV_FORMAT();
+    private CSVFormat createCSVFormat(GetFileDto dto) throws BadDtoException {
+        String formatName = dto.getCSV_FORMAT() != null ? dto.getCSV_FORMAT() : "custom" ;
         if (formatName.equalsIgnoreCase("custom")) {
             return buildCustomFormat(dto);
         } else if (formatName.equalsIgnoreCase("rfc-4180")) {
@@ -535,48 +533,57 @@ public class ConvertExcelToCSVService {
             return formatName.equalsIgnoreCase("informix-unload-csv") ? CSVFormat.INFORMIX_UNLOAD_CSV : CSVFormat.DEFAULT;
         }
     }
-    private CSVFormat buildCustomFormat(GetFileDto GetFileDto) {
-        Character valueSeparator = getValueSeparatorCharUnescapedJava(GetFileDto.getVALUE_SEPARATOR());
-        CSVFormat format = CSVFormat.newFormat(valueSeparator).withAllowMissingColumnNames().withIgnoreEmptyLines();
-        if (GetFileDto.getFIRST_LINE_IS_HEADER() != null && GetFileDto.getFIRST_LINE_IS_HEADER()) {
-            format = format.withFirstRecordAsHeader();
-        }
-
-        Character quoteChar = getCharUnescaped(GetFileDto.getQUOTE_CHAR(), QUOTE_CHAR);
-        format = format.withQuote(quoteChar);
-        Character escapeChar = GetFileDto.getESCAPE_CHAR().isEmpty() ? null : getCharUnescaped(GetFileDto.getESCAPE_CHAR(), ESCAPE_CHAR);
-        format = format.withEscape(escapeChar);
-        format = format.withTrim(GetFileDto.getTRIM_FIELDS());
-        if (GetFileDto.getCOMMENT_MAKER() != null) {
-            Character commentMarker = getCharUnescaped(GetFileDto.getCOMMENT_MAKER(), COMMENT_MARKER);
-            if (commentMarker != null) {
-                format = format.withCommentMarker(commentMarker);
+    private CSVFormat buildCustomFormat(GetFileDto GetFileDto) throws BadDtoException {
+        try {
+            Character valueSeparator = getValueSeparatorCharUnescapedJava(GetFileDto.getVALUE_SEPARATOR());
+            CSVFormat format = CSVFormat.newFormat(valueSeparator).withAllowMissingColumnNames().withIgnoreEmptyLines();
+            if (GetFileDto.getFIRST_LINE_IS_HEADER() == null || GetFileDto.getFIRST_LINE_IS_HEADER()) {
+                format = format.withFirstRecordAsHeader();
             }
+
+            Character quoteChar = getCharUnescaped(GetFileDto.getQUOTE_CHAR(), QUOTE_CHAR);
+            format = format.withQuote(quoteChar);
+            Character escapeChar;
+            if (GetFileDto.getESCAPE_CHAR() == null || GetFileDto.getESCAPE_CHAR().isEmpty()) {
+                escapeChar = null;
+            } else {
+                escapeChar = getCharUnescaped(GetFileDto.getESCAPE_CHAR(), ESCAPE_CHAR);
+            }
+            format = format.withEscape(escapeChar);
+
+            format = format.withTrim(GetFileDto.getTRIM_FIELDS() == null || GetFileDto.getTRIM_FIELDS());
+            if (GetFileDto.getCOMMENT_MAKER() != null) {
+                Character commentMarker = getCharUnescaped(GetFileDto.getCOMMENT_MAKER(), COMMENT_MARKER);
+                if (commentMarker != null) {
+                    format = format.withCommentMarker(commentMarker);
+                }
+            }
+            if (GetFileDto.getNULL_STRING() != null) {
+                format = format.withNullString(unescape(GetFileDto.getNULL_STRING()));
+            }
+
+            if (GetFileDto.getQUOTE_MODE() != null && EnumUtils.isValidEnum(QuoteMode.class, GetFileDto.getQUOTE_MODE())
+                    && !GetFileDto.getQUOTE_MODE().equals("ALL_NON_NULL")) {
+                QuoteMode quoteMode = QuoteMode.valueOf(GetFileDto.getQUOTE_MODE());
+                format = format.withQuoteMode(quoteMode);
+            } else {
+                format = format.withQuoteMode(QuoteMode.MINIMAL);
+            }
+            format = format.withTrailingDelimiter((GetFileDto.getTRAILING_DELIMITER() != null ?
+                                                                            GetFileDto.getTRAILING_DELIMITER() : false));
+            if (GetFileDto.getRECORD_SEPARATOR() != null) {
+                String separator = unescape(GetFileDto.getRECORD_SEPARATOR());
+                format = format.withRecordSeparator(separator);
+            } else {
+                format = format.withRecordSeparator("\\n");
+            }
+            format = format.withAllowDuplicateHeaderNames((GetFileDto.getALLOW_DUPLICATE_HEADER_NAMES() == null ||
+                                                                            GetFileDto.getALLOW_DUPLICATE_HEADER_NAMES()));
+            return format;
+        } catch (Exception e){
+            throw new BadDtoException("Given parameters are incorrect!");
         }
-        if (GetFileDto.getNULL_STRING() != null) {
-            format = format.withNullString(unescape(GetFileDto.getNULL_STRING()));
-        }
 
-
-        if (GetFileDto.getQUOTE_MODE() != null) {
-            QuoteMode quoteMode = QuoteMode.valueOf(GetFileDto.getQUOTE_MODE());
-            format = format.withQuoteMode(quoteMode);
-        }
-
-
-        if (GetFileDto.getTRAILING_DELIMITER() != null) {
-            format = format.withTrailingDelimiter(GetFileDto.getTRAILING_DELIMITER());
-        }
-
-        if (GetFileDto.getRECORD_SEPARATOR() != null) {
-            format = format.withRecordSeparator(GetFileDto.getRECORD_SEPARATOR());
-        }
-
-        if (GetFileDto.getALLOW_DUPLICATE_HEADER_NAMES()!= null) {
-            format = format.withAllowDuplicateHeaderNames(GetFileDto.getALLOW_DUPLICATE_HEADER_NAMES());
-        }
-
-        return format;
     }
 
     private Character getValueSeparatorCharUnescapedJava(String value) {
@@ -604,7 +611,7 @@ public class ConvertExcelToCSVService {
         return property.getDefaultValue() != null ? property.getDefaultValue().charAt(0) : null;
     }
 
-    public String unescape(String input) {
+    private String unescape(String input) {
         if (input != null && input.length() > 1) {
             input = StringEscapeUtils.unescapeJava(input);
         }
@@ -632,11 +639,11 @@ public class ConvertExcelToCSVService {
         con.connect();
         int responseCode = con.getResponseCode();
         if (responseCode != 200) { // FIXME: 11.07.2022 Возможно не работает
-            throw new BadLinkException("Unable to read from given URL");
+            throw new BadLinkException("Unable to read from given URL.");
         }
         String filename =urlString.toLowerCase().substring(urlString.lastIndexOf("/") + 1);
-        if (!(filename.endsWith("xls") || filename.endsWith("xlsx"))) {
-            throw new WrongFileFormatException("Wrong file type: Only support .xls or .xlsx file!");
+        if (!filename.endsWith("xlsx")) {  //(filename.endsWith("xls") ||
+            throw new WrongFileFormatException("Wrong file type: Only support .xlsx file!");
         }
         inputStream = con.getInputStream();
         return inputStream;
@@ -644,17 +651,23 @@ public class ConvertExcelToCSVService {
 
 
 
-    private GetFileDto MapToDto(Map<String,String> map) throws BadDtoException { // FIXME: 14.07.2022 Пока не работает должным образом
+    private GetFileDto MapToDto(Map<String,String> map) throws BadDtoException {
         try {
-            return GetFileDto.builder().URL("Empty")
-                    .CSV_FORMAT("EXCEL").build();
+            GetFileDto getFileDto = GetFileDto.builder().URL("MULTIPART_FILE").build();
+            BeanUtils.populate(getFileDto,map);
+            return getFileDto;
         } catch (Exception e){
-            throw new BadDtoException("Wrong parameters!");
+            throw new BadDtoException("Given parameters are incorrect!");
         }
     }
 
 
-    private void CreateZipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
+
+
+
+    private void createZipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
+        FileInputStream fis=null;
+        try {
         if (fileToZip.isHidden()) {
             return;
         }
@@ -668,11 +681,11 @@ public class ConvertExcelToCSVService {
             }
             File[] children = fileToZip.listFiles();
             for (File childFile : children) {
-                CreateZipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
+                createZipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
             }
             return;
         }
-        FileInputStream fis = new FileInputStream(fileToZip);
+        fis = new FileInputStream(fileToZip);
         ZipEntry zipEntry = new ZipEntry(fileName);
         zipOut.putNextEntry(zipEntry);
         byte[] bytes = new byte[1024];
@@ -680,6 +693,12 @@ public class ConvertExcelToCSVService {
         while ((length = fis.read(bytes)) >= 0) {
             zipOut.write(bytes, 0, length);
         }
-        fis.close();
+        } catch (Exception e){
+            throw new RuntimeException("Failed to create zip file.");
+        }
+        finally{
+            if (fis!=null)
+            fis.close();
+        }
     }
 }
