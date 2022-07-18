@@ -386,22 +386,30 @@ public class ConvertExcelToCSVService {
     }
 
     private InputStream urlToInputStream(String urlString) throws IOException, BadLinkException, WrongFileFormatException {
-        HttpURLConnection con;
+        HttpURLConnection con = null;
         InputStream inputStream;
-        final URL url = new URL(urlString);
-        con = (HttpURLConnection) url.openConnection();
-        con.setConnectTimeout(15000);
-        con.setReadTimeout(15000);
-        con.connect();
+        try {
+            final URL url = new URL(urlString);
+            con = (HttpURLConnection) url.openConnection();
+            con.setConnectTimeout(15000);
+            con.setReadTimeout(15000);
+            con.connect();
+        } catch (Exception e){
+            if (con!= null) { con.disconnect();}
+            throw new RuntimeException("Unable to read from given URL.");
+        }
         int responseCode = con.getResponseCode();
         if (responseCode != 200) {
+            con.disconnect();
             throw new BadLinkException("Unable to read from given URL.");
         }
         String filename =urlString.toLowerCase().substring(urlString.lastIndexOf("/") + 1);
-        if (!filename.endsWith("xlsx")) {  //(filename.endsWith("xls") ||
+        if (!filename.endsWith("xlsx")) {
+            con.disconnect();
             throw new WrongFileFormatException("Wrong file type: Only support .xlsx file!");
         }
         inputStream = con.getInputStream();
+        con.disconnect();
         return inputStream;
     }
 
