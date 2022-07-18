@@ -23,7 +23,7 @@ public class ConverterController {
     ConvertExcelToCSVService convertExcelToCSV;
 
     @PostMapping(value = "/json")
-    public void parseURL(@RequestBody GetFileDto getfiledto, HttpServletResponse response) throws Exception {
+    public void parseURL(@RequestBody GetFileDto getfiledto, HttpServletResponse response) throws IOException {
 
             byte[] zip = convertExcelToCSV.convertExcelToCSV(Map.of(), getfiledto); //  размер файла lenght и рар
             OutputStream os = response.getOutputStream();
@@ -38,7 +38,7 @@ public class ConverterController {
     @PostMapping(value = "/multipart")
     public void parseMultipartFile(@RequestParam Map<String, String> params,
                                                      @RequestBody MultipartFile multipartFile,
-                                                     HttpServletResponse response) throws Exception {
+                                                     HttpServletResponse response) throws IOException {
             byte[] zip = convertExcelToCSV.convertExcelToCSV(params, multipartFile); //  размер файла lenght и рар
             OutputStream os = response.getOutputStream();
             os.write(zip, 0, zip.length);
