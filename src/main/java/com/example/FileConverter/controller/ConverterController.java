@@ -58,9 +58,9 @@ public class ConverterController {
         }
 
     }
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> exceptionHandler(IOException e) {
-
-        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+//    @ExceptionHandler(IOException.class)
+//    public ResponseEntity<String> exceptionHandler(IOException e) {
+//
+//        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
+//    }
 }

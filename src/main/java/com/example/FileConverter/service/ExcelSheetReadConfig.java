@@ -67,14 +67,14 @@ public class ExcelSheetReadConfig {
 
     private int firstRow;
     private int lastRow;
-    private final int overrideFirstRow;
-    private final String sheetName;
-    private final boolean formatValues;
+    private int overrideFirstRow;
+    private String sheetName;
+    private boolean formatValues;
 
-    private final ReadOnlySharedStringsTable sst;
-    private final StylesTable styles;
+    private ReadOnlySharedStringsTable sst;
+    private StylesTable styles;
 
-    private final List<Integer> columnsToSkip;
+    private List<Integer> columnsToSkip;
 
     public ExcelSheetReadConfig(List<Integer> columnsToSkip, int overrideFirstRow, String sheetName,
                                 boolean formatValues, ReadOnlySharedStringsTable sst, StylesTable styles) {

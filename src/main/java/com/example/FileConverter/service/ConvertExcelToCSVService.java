@@ -206,18 +206,18 @@ public class ConvertExcelToCSVService {
     private void handleExcelSheet(final InputStream sheetInputStream, ExcelSheetReadConfig readConfig, CSVFormat csvFormat, String filename)
             throws IOException, ParserException {
         try (sheetInputStream) {
-            final DataFormatter formatter = new DataFormatter();
-            final InputSource sheetSource = new InputSource(sheetInputStream);
+            DataFormatter formatter = new DataFormatter();
+            InputSource sheetSource = new InputSource(sheetInputStream);
 
-            final SheetToCSV sheetHandler = new SheetToCSV(readConfig, csvFormat);
+            SheetToCSV sheetHandler = new SheetToCSV(readConfig, csvFormat);
 
-            final XMLReader parser = SAXHelper.newXMLReader();
+            XMLReader parser = SAXHelper.newXMLReader();
 
             //If Value Formatting is set to false then don't pass in the styles table.
             // This will cause the XSSF Handler to return the raw value instead of the formatted one.
-            final StylesTable sst = readConfig.getFormatValues() ? readConfig.getStyles() : null;
+            StylesTable sst = readConfig.getFormatValues() ? readConfig.getStyles() : null;
 
-            final XSSFSheetXMLHandler handler = new XSSFSheetXMLHandler(sst, null,
+            XSSFSheetXMLHandler handler = new XSSFSheetXMLHandler(sst, null,
                     readConfig.getSharedStringsTable(), sheetHandler, formatter, false);
 
             parser.setContentHandler(handler);
@@ -387,30 +387,34 @@ public class ConvertExcelToCSVService {
 
     private InputStream urlToInputStream(String urlString) throws IOException, BadLinkException, WrongFileFormatException {
         HttpURLConnection con = null;
-        InputStream inputStream;
+        InputStream inputStream = null;
         try {
-            final URL url = new URL(urlString);
-            con = (HttpURLConnection) url.openConnection();
-            con.setConnectTimeout(15000);
-            con.setReadTimeout(15000);
-            con.connect();
-        } catch (Exception e){
-            if (con!= null) { con.disconnect();}
-            throw new RuntimeException("Unable to read from given URL.");
+            try {
+                final URL url = new URL(urlString);
+                con = (HttpURLConnection) url.openConnection();
+                con.setConnectTimeout(15000);
+                con.setReadTimeout(15000);
+                con.connect();
+            } catch (Exception e) {
+                if (con != null) {
+                    con.disconnect();
+                }
+                throw new RuntimeException("Unable to read from given URL.");
+            }
+            int responseCode = con.getResponseCode();
+            if (responseCode != 200) {
+                throw new BadLinkException("Unable to read from given URL.");
+            }
+            String filename = urlString.toLowerCase().substring(urlString.lastIndexOf("/") + 1);
+            if (!filename.endsWith("xlsx")) {
+                throw new WrongFileFormatException("Wrong file type: Only support .xlsx file!");
+            }
+            inputStream = con.getInputStream();
+            return inputStream;
         }
-        int responseCode = con.getResponseCode();
-        if (responseCode != 200) {
-            con.disconnect();
-            throw new BadLinkException("Unable to read from given URL.");
+        finally {
+            if (con != null) {con.connect();}
         }
-        String filename =urlString.toLowerCase().substring(urlString.lastIndexOf("/") + 1);
-        if (!filename.endsWith("xlsx")) {
-            con.disconnect();
-            throw new WrongFileFormatException("Wrong file type: Only support .xlsx file!");
-        }
-        inputStream = con.getInputStream();
-        con.disconnect();
-        return inputStream;
     }
 
 
@@ -436,16 +440,9 @@ public class ConvertExcelToCSVService {
                 return;
             }
             if (fileToZip.isDirectory()) {
-                if (fileName.endsWith("/")) {
-                    zipOut.putNextEntry(new ZipEntry(fileName));
-                    zipOut.closeEntry();
-                } else {
-                    zipOut.putNextEntry(new ZipEntry(fileName + "/"));
-                    zipOut.closeEntry();
-                }
                 File[] children = fileToZip.listFiles();
                 for (File childFile : children) {
-                    createZipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
+                    createZipFile(childFile, childFile.getName(), zipOut);
                 }
                 return;
             }
