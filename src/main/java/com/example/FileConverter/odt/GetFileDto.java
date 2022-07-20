@@ -16,26 +16,26 @@ public class GetFileDto {
 
 
     @NonNull
-    private String URL;
+    private String url;
 
-    private String DESIRED_SHEETS;
-    private int ROWS_TO_SKIP;
-    private String COLUMNS_TO_SKIP;   // Номера столбцов через ","
-    private boolean FORMAT_VALUES;
+    private String desired_sheets;
+    private String row_to_skip;
+    private String columns_to_skip;   // Номера столбцов через ","
+    private boolean format_values;
 
-    private String CSV_FORMAT; // "CUSTOM" если поле не получено и "DEFAULT" если полученно значение, не входящее в данный список
+    private String csv_format; // "CUSTOM" если поле не получено и "DEFAULT" если полученно значение, не входящее в данный список
 
     /** Эти параметры используются только если CSV_FORMAT = "CUSTOM" */
-    private String VALUE_SEPARATOR;
-    private Boolean FIRST_LINE_IS_HEADER;
-    private String QUOTE_CHAR;
-    private String ESCAPE_CHAR;
-    private String COMMENT_MAKER; //The comment start and the escape character cannot be the same ('1')
-    private String NULL_STRING;
-    private Boolean TRIM_FIELDS;
-    private String QUOTE_MODE;  // "MINIMAL" если поле не получено или некорректное значение
-    private String RECORD_SEPARATOR;
-    private Boolean TRAILING_DELIMITER;
-    private Boolean ALLOW_DUPLICATE_HEADER_NAMES;
+    private String value_separator;
+    private Boolean first_line_is_header;
+    private String quote_char;
+    private String escape_char;
+    private String comment_maker; //The comment start and the escape character cannot be the same ('1')
+    private String null_string;
+    private Boolean trim_fields;
+    private String quote_mode;  // "MINIMAL" если поле не получено или некорректное значение
+    private String record_separator;
+    private Boolean trailing_delimiter;
+    private Boolean allow_duplicate_header_names;
 
 }

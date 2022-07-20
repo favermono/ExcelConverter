@@ -54,13 +54,13 @@ public class ConverterController {
         if (e.getClass() != HttpMessageNotReadableException.class){
             return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         } else {
-            return new ResponseEntity<>("Error: the \"URL\" field must be filled in.", HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
 
     }
-//    @ExceptionHandler(IOException.class)
-//    public ResponseEntity<String> exceptionHandler(IOException e) {
-//
-//        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
-//    }
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<String> exceptionHandler(IOException e) {
+
+        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

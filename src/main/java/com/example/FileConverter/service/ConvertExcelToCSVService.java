@@ -69,10 +69,10 @@ public class ConvertExcelToCSVService {
             GetFileDto getFileDto;
             if (model.getClass() == GetFileDto.class) {     //создаем файл из приянтого inputStream'а
                 getFileDto = (GetFileDto) model;
-                filename =getFileDto.getURL().toLowerCase()
-                        .substring(getFileDto.getURL().lastIndexOf("/") + 1)
+                filename =getFileDto.getUrl().toLowerCase()
+                        .substring(getFileDto.getUrl().lastIndexOf("/") + 1)
                         .split("\\.")[0];
-                fis = urlToInputStream(getFileDto.getURL());
+                fis = urlToInputStream(getFileDto.getUrl());
 
             } else {
                 MultipartFile multipartFile = (MultipartFile) model;
@@ -121,13 +121,13 @@ public class ConvertExcelToCSVService {
     private void convertFileToExcel(final GetFileDto getFileDto, String filename, String directory) {
 
 
-        final String desiredSheetsDelimited = getFileDto.getDESIRED_SHEETS();
-        final boolean formatValues = getFileDto.isFORMAT_VALUES();
+        final String desiredSheetsDelimited = getFileDto.getDesired_sheets();
+        final boolean formatValues = getFileDto.isFormat_values();
 
         final CSVFormat csvFormat = createCSVFormat(getFileDto);
         //Switch to 0 based index
-        final int firstRow = getFileDto.getROWS_TO_SKIP() - 1;
-        final String[] sColumnsToSkip = split(getFileDto.getCOLUMNS_TO_SKIP(), ",");
+        final int firstRow = getFileDto.getRow_to_skip()!= null ? Integer.parseInt(getFileDto.getRow_to_skip()) - 1 : -1;
+        final String[] sColumnsToSkip = split(getFileDto.getColumns_to_skip(), ",");
         final List<Integer> columnsToSkip = new ArrayList<>();
 
         if (sColumnsToSkip != null && sColumnsToSkip.length > 0) {
@@ -151,7 +151,7 @@ public class ConvertExcelToCSVService {
             StylesTable styles = r.getStylesTable();
             XSSFReader.SheetIterator iter = (XSSFReader.SheetIterator) r.getSheetsData();
 
-            if (desiredSheetsDelimited != null) {
+            if (desiredSheetsDelimited != null && !desiredSheetsDelimited.isEmpty()) {
                 String[] desiredSheets = split(desiredSheetsDelimited,
                         DESIRED_SHEETS_DELIMITER);
 
@@ -274,7 +274,7 @@ public class ConvertExcelToCSVService {
 
 
     private CSVFormat createCSVFormat(GetFileDto dto) throws BadDtoException {
-        String formatName = dto.getCSV_FORMAT() != null ? dto.getCSV_FORMAT() : "custom" ;
+        String formatName = dto.getCsv_format() != null ? dto.getCsv_format() : "custom" ;
         if (formatName.equalsIgnoreCase("custom")) {
             return buildCustomFormat(dto);
         } else if (formatName.equalsIgnoreCase("rfc-4180")) {
@@ -293,50 +293,50 @@ public class ConvertExcelToCSVService {
     }
     private CSVFormat buildCustomFormat(GetFileDto getFileDto) throws BadDtoException {
         try {
-            Character valueSeparator = getValueSeparatorCharUnescapedJava(getFileDto.getVALUE_SEPARATOR());
+            Character valueSeparator = getValueSeparatorCharUnescapedJava(getFileDto.getValue_separator());
             CSVFormat format = CSVFormat.newFormat(valueSeparator).withAllowMissingColumnNames().withIgnoreEmptyLines();
-            if (getFileDto.getFIRST_LINE_IS_HEADER() == null || getFileDto.getFIRST_LINE_IS_HEADER()) {
+            if (getFileDto.getFirst_line_is_header() == null || getFileDto.getFirst_line_is_header()) {
                 format = format.withFirstRecordAsHeader();
             }
 
-            Character quoteChar = getCharUnescaped(getFileDto.getQUOTE_CHAR(), QUOTE_CHAR);
+            Character quoteChar = getCharUnescaped(getFileDto.getQuote_char(), QUOTE_CHAR);
             format = format.withQuote(quoteChar);
             Character escapeChar;
-            if (getFileDto.getESCAPE_CHAR() == null || getFileDto.getESCAPE_CHAR().isEmpty()) {
+            if (getFileDto.getEscape_char() == null || getFileDto.getEscape_char().isEmpty()) {
                 escapeChar = null;
             } else {
-                escapeChar = getCharUnescaped(getFileDto.getESCAPE_CHAR(), ESCAPE_CHAR);
+                escapeChar = getCharUnescaped(getFileDto.getEscape_char(), ESCAPE_CHAR);
             }
             format = format.withEscape(escapeChar);
 
-            format = format.withTrim(getFileDto.getTRIM_FIELDS() == null || getFileDto.getTRIM_FIELDS());
-            if (getFileDto.getCOMMENT_MAKER() != null) {
-                Character commentMarker = getCharUnescaped(getFileDto.getCOMMENT_MAKER(), COMMENT_MARKER);
+            format = format.withTrim(getFileDto.getTrim_fields() == null || getFileDto.getTrim_fields());
+            if (getFileDto.getComment_maker() != null) {
+                Character commentMarker = getCharUnescaped(getFileDto.getComment_maker(), COMMENT_MARKER);
                 if (commentMarker != null) {
                     format = format.withCommentMarker(commentMarker);
                 }
             }
-            if (getFileDto.getNULL_STRING() != null) {
-                format = format.withNullString(unescape(getFileDto.getNULL_STRING()));
+            if (getFileDto.getNull_string() != null) {
+                format = format.withNullString(unescape(getFileDto.getNull_string()));
             }
 
-            if (getFileDto.getQUOTE_MODE() != null && EnumUtils.isValidEnum(QuoteMode.class, getFileDto.getQUOTE_MODE())
-                    && !getFileDto.getQUOTE_MODE().equals("ALL_NON_NULL")) {
-                QuoteMode quoteMode = QuoteMode.valueOf(getFileDto.getQUOTE_MODE());
+            if (getFileDto.getQuote_mode() != null && EnumUtils.isValidEnum(QuoteMode.class, getFileDto.getQuote_mode())
+                    && !getFileDto.getQuote_mode().equals("ALL_NON_NULL")) {
+                QuoteMode quoteMode = QuoteMode.valueOf(getFileDto.getQuote_mode());
                 format = format.withQuoteMode(quoteMode);
             } else {
                 format = format.withQuoteMode(QuoteMode.MINIMAL);
             }
-            format = format.withTrailingDelimiter(getFileDto.getTRAILING_DELIMITER() != null &&
-                                                                            getFileDto.getTRAILING_DELIMITER());
-            if (getFileDto.getRECORD_SEPARATOR() != null) {
-                String separator = unescape(getFileDto.getRECORD_SEPARATOR());
+            format = format.withTrailingDelimiter(getFileDto.getTrailing_delimiter() != null &&
+                                                                            getFileDto.getTrailing_delimiter());
+            if (getFileDto.getRecord_separator() != null) {
+                String separator = unescape(getFileDto.getRecord_separator());
                 format = format.withRecordSeparator(separator);
             } else {
                 format = format.withRecordSeparator("\n");
             }
-            format = format.withAllowDuplicateHeaderNames((getFileDto.getALLOW_DUPLICATE_HEADER_NAMES() == null ||
-                                                                            getFileDto.getALLOW_DUPLICATE_HEADER_NAMES()));
+            format = format.withAllowDuplicateHeaderNames((getFileDto.getAllow_duplicate_header_names() == null ||
+                                                                            getFileDto.getAllow_duplicate_header_names()));
             return format;
         } catch (Exception e){
             throw new BadDtoException("Given parameters are incorrect!");
@@ -421,7 +421,7 @@ public class ConvertExcelToCSVService {
 
     private GetFileDto mapToDto(Map<String,String> map) throws BadDtoException {
         try {
-            GetFileDto getFileDto = GetFileDto.builder().URL("MULTIPART_FILE").build();
+            GetFileDto getFileDto = GetFileDto.builder().url("MULTIPART_FILE").build();
             BeanUtils.populate(getFileDto,map);
             return getFileDto;
         } catch (Exception e){

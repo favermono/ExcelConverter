@@ -6,6 +6,33 @@ import org.apache.poi.xssf.model.StylesTable;
 import java.util.List;
 
 public class ExcelSheetReadConfig {
+
+    private int firstColumn;
+    private int lastColumn;
+
+    private int firstRow;
+    private int lastRow;
+    private int overrideFirstRow;
+    private String sheetName;
+    private boolean formatValues;
+
+    private ReadOnlySharedStringsTable sst;
+    private StylesTable styles;
+
+    private List<Integer> columnsToSkip;
+
+    public ExcelSheetReadConfig(List<Integer> columnsToSkip, int overrideFirstRow, String sheetName,
+                                boolean formatValues, ReadOnlySharedStringsTable sst, StylesTable styles) {
+
+        this.sheetName = sheetName;
+        this.columnsToSkip = columnsToSkip;
+        this.overrideFirstRow = overrideFirstRow;
+        this.formatValues = formatValues;
+
+        this.sst = sst;
+        this.styles = styles;
+    }
+
     public String getSheetName() {
         return sheetName;
     }
@@ -62,29 +89,4 @@ public class ExcelSheetReadConfig {
         return styles;
     }
 
-    private int firstColumn;
-    private int lastColumn;
-
-    private int firstRow;
-    private int lastRow;
-    private int overrideFirstRow;
-    private String sheetName;
-    private boolean formatValues;
-
-    private ReadOnlySharedStringsTable sst;
-    private StylesTable styles;
-
-    private List<Integer> columnsToSkip;
-
-    public ExcelSheetReadConfig(List<Integer> columnsToSkip, int overrideFirstRow, String sheetName,
-                                boolean formatValues, ReadOnlySharedStringsTable sst, StylesTable styles) {
-
-        this.sheetName = sheetName;
-        this.columnsToSkip = columnsToSkip;
-        this.overrideFirstRow = overrideFirstRow;
-        this.formatValues = formatValues;
-
-        this.sst = sst;
-        this.styles = styles;
-    }
 }
