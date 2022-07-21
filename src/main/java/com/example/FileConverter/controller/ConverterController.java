@@ -4,14 +4,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Map;
 
-import com.example.FileConverter.odt.GetFileDto;
+import com.example.FileConverter.dto.GetFileDto;
 import com.example.FileConverter.service.ConvertExcelToCSVService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -40,6 +37,10 @@ public class ConverterController {
     public void parseMultipartFile(@RequestParam Map<String, String> params,
                                                      @RequestBody MultipartFile multipartFile,
                                                      HttpServletResponse response) throws IOException {
+            if (multipartFile == null){
+                throw new RuntimeException("For this request, you need to attach a \"multipartFile\" file. " +
+                        "If you only have a link to the file, use \"host:8080/json\".");
+            }
             byte[] zip = convertExcelToCSV.convertExcelToCSV(params, multipartFile); //  размер файла lenght и рар
             OutputStream os = response.getOutputStream();
             os.write(zip, 0, zip.length);
@@ -49,18 +50,4 @@ public class ConverterController {
             os.close();
     }
 
-    @ExceptionHandler({RuntimeException.class, HttpMessageNotReadableException.class})
-    public ResponseEntity<String> exceptionHandler(RuntimeException e) {
-        if (e.getClass() != HttpMessageNotReadableException.class){
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        } else {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
-
-    }
-    @ExceptionHandler(IOException.class)
-    public ResponseEntity<String> exceptionHandler(IOException e) {
-
-        return new ResponseEntity<>("An error occurred while processing the file.", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
 }

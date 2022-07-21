@@ -5,11 +5,46 @@ XlsxToCsvConverter
 где каждый лист конвертируется в отдельный файл типа "*имя файла*.csv" и 
 помещается в zip архив.
 
+### Пример работы и конвертации листа Excel в CSV
+Сначала идет поиск первой ячейки, в которой есть значение (По каждой строке, слева направо).
+Далее сканирует всю строку до тех пор, пока не дойдет до последней не пустой ячейки.
+Последующие строки обрабатываются от столбца, где была найдена первая не пустая ячейка,
+к столбцу где была не пустая последняя ячейка.
+Если в строке нет ни одной ячейки, имеющей значение, то строка игнорируется.
+В качестве примера, лист, показанный ниже:
+
+Row | A | B | C | D | E | F | G | 
+--- | --- | --- | --- |--- |--- |--- |---
+1 |  |  | x | y | z |  | 
+2 |  |  | 1 |  |  |  | 
+3 | 2 |  |  | 3 |  |  | 
+4 |  |  |  |  | 4 |  | 
+5 |  |  | 5 | 6 | 7 |  | 
+6 |  |  |  |  |  | 8 | 
+7 |  |  |  |  |  |  | 
+8 |  |  |  |  | 9 |  | 
+9 |  |  |  |  |  |  | 
+10 |  |  |  |  |  |  |
+
+Будет преобразован в следующий формат CSV:<br />
+x,y,z<br />
+1,,<br />
+,3,<br />
+,,4<br />
+5,6,7<br />
+,,9<br />
+
+C2(x) - это первая не пустая ячейка в листе, а E2(z) - последняя не пустая ячейка этой строки. <br />
+A4(2) игнорируется, поскольку ячейка находится вне диапазона. Как и F7(8). <br />
+Строки 7 и 8 игнорируются, поскольку в них нет значений в выбранном диапазоне. <br />
+
+**Желательно иметь строку с заголовками таблицы, как показано в примере, для определения области данных для конвертирования,
+особенно если лист содержит пустые ячейки.**
 ### Опции:
 **url** - Ссылка на исходный файл (если запрос в виде json)
 	
 **desired_sheets** - Строка с названиями листов (разделены ","), 
-которые нужно конвертировать. **По умолчанию конвертирует все листы.**
+которые нужно конвертировать. Если выбранных листов нет, возвращает пустой файл. **По умолчанию конвертирует все листы.**
 
 **row_to_skip** - Количество строк от начала документа,
 которые стоит пропустить. **По умолчанию 0.**
@@ -18,7 +53,8 @@ XlsxToCsvConverter
 
 **format_values** - Задает, стоит ли записывать значения ячеек с учетом формата эксель (формулы, валюты и т.д),
 или без него (raw values). **По умолчанию записывает без учета (false).** 
-	
+> Данные параметры используются всегда (если заданы) и не зависят от выбранного CSV формата! 
+
 **csv_format** - Формат выходных csv файлов. **По умолчанию "CUSTOM"**.
 
 >Доступные форматы (название и как записывать в кавычках): <br />
@@ -30,12 +66,12 @@ XlsxToCsvConverter
 > "informix-unload"<br />
 > "informix-unload-csv"<br />
 
-## Следующие параметры учитываются только при CSV_FORMAT = "CUSTOM"
+## Следующие параметры учитываются только при csv_format = "CUSTOM"
 **value_separator** - Символ-разделитель значений в csv файлах **("," по умолчанию)**<br />
 **first_line_is_header** - Параметр отвечает за то, нужно ли включать в csv файл первую строку таблицы. **По умолчанию "true".** <br />
 **quote_char** - Символ, который используется для заключения значений в кавычки, чтобы избежать использования escape-символов.  <br />
-**escape_char** - Используется для обозначения особых символов, которые могли бы повлиять на поведения обработчика данных при считывании.  <br />
-**comment_maker** - Символ, обозначающий начало комментария.<br />
+**escape_char** - Используется для особых символов, которые могут иметь неоднозначное значение для csv парсера.  <br />
+**comment_maker** - Символ, обозначающий начало комментария. Любая строка, начинающаяся с этого значения будет игнорироваться.<br />
 **null_string** - Задает строку, и если она представлена в виде значения в CSV файле,
 то должна рассматриваться как пустое поле вместо использования буквального значения.<br />
 **trim_fields** - Следует ли удалять пробелы в начале и в конце полей. **По умолчанию "true"**. <br />
@@ -48,7 +84,7 @@ XlsxToCsvConverter
 > только если они содержат специальные символы, такие как символы новой строки или разделители.<br />
 > ***Quote Non-Numeric Values*** - "NON_NUMERIC". Все значения будут заключены в кавычки, кроме числовых.<br />
 
-**record_separator** - Указывает символы, используемые для разделения CSV записей. **По умолчанию "\n"** . <br />
+**record_separator** - Указывает символы, используемые для разделения CSV строк. **По умолчанию "\n"** . <br />
 **trailing_delimiter** - Нужно ли записывать завершающий разделитель в конец каждого файла? **По умолчанию "false"**. <br />
 **allow_duplicate_header_names** - Отвечает за разрешение записывать
 несколько столбцов с одинаковыми названиями. **По умолчанию "false"**. <br />
@@ -61,7 +97,7 @@ XlsxToCsvConverter
 + Body:
 ```json
 {
-  "URL": "https://filesamples.com/samples/document/xlsx/sample1.xlsx"
+  "url": "https://filesamples.com/samples/document/xlsx/sample1.xlsx"
 }
 ```
 > Успешный ответ: status code 200
@@ -74,10 +110,10 @@ XlsxToCsvConverter
 + Body:
 ```json
 {
-  "URL":"https://filesamples.com/samples/document/xlsx/sample1.xlsx",
-  "CSV_FORMAT":"Excel",
-  "VALUE_SEPARATOR":";",
-  "FIRST_LINE_IS_HEADER":"true"
+  "url":"https://filesamples.com/samples/document/xlsx/sample1.xlsx",
+  "csv_format":"Excel",
+  "value_separator":";",
+  "first_line_is_header":"true"
 }
 ```
 
@@ -91,11 +127,11 @@ XlsxToCsvConverter
 + Body:
 ```json
 {
-  "URL":"https://filesamples.com/samples/document/xlsx/sample1.xlsx",
-  "VALUE_SEPARATOR":";",
-  "FIRST_LINE_IS_HEADER":"true",
-  "COMMENT_MAKER":"//",
-  "COLUMNS_TO_SKIP":"3"
+  "url":"https://filesamples.com/samples/document/xlsx/sample1.xlsx",
+  "value_separator":";",
+  "first_line_is_header":"true",
+  "comment_maker":"//",
+  "columns_to_skip":"3"
 }
 ```
 
@@ -108,7 +144,7 @@ XlsxToCsvConverter
 
 + **POST** request `<host>:8080/multipart`
 + header: `Content-Type: multipart/form-data`
-+ Excel multipart file.xlsx 
++ multipartFile (.xlsx) 
 
 
 
@@ -120,7 +156,7 @@ XlsxToCsvConverter
 
 + **POST** request `<host>:8080/multipart?VALUE_SEPARATOR=%3B&FIRST_LINE_IS_HEADER=true&COMMENT_MAKER=%2F%2F&COLUMNS_TO_SKIP=3`
 + header: `Content-Type: multipart/form-data`
-+ Excel multipart file.xlsx
++ multipartFile (.xlsx)
 
 
 
@@ -132,8 +168,41 @@ XlsxToCsvConverter
 
 + **POST** request `<host>:8080/multipart?VALUE_SEPARATOR=%3B&FIRST_LINE_IS_HEADER=true&COMMENT_MAKER=%2F%2F&COLUMNS_TO_SKIP=3&CSV_TYPE=Excel`
 + header: `Content-Type: multipart/form-data`
-+ Excel multipart file.xlsx
++ multipartFile (.xlsx)
 
 > Успешный ответ: status code 200
 
 >Zip файл с листами, вынесенными в отдельные csv. Так как задан формат "Excel", остальные параметры, связанные с форматом csv игнорируются.
+
+##Возможные ошибки
+###Нет ссылки на файл в json запросе:
+```json
+{
+"format_values":"true"
+}
+```
+Ответ: 400 (Bad Request): 'url' field missed or some fields are filled in incorrectly (check README.md for more information).
+
+###Неверный формат переменных в json запросе:
+
+Пример 1:
+```json
+{
+  "url":"https://filesamples.com/samples/document/xlsx/sample3.xlsx",
+  "format_values":"yes" //должно быть "true" или "false"
+}
+```
+Ответ: 400 (Bad Request): 'url' field missed or some fields are filled in incorrectly (check README.md for more information).
+
+>В host:8080/multipart в случае неверного формата переменных ставятся дефолтные значения полей
+> и ошибка не возникает
+
+Пример 2:
+
+```json
+{
+  "url":"https://filesamples.com/samples/document/xlsx/sample3.xlsx",
+  "columns_to_skip":"blabla" // должна быть строка с номерами столбцов через запятую
+}
+```
+Ответ: 400 (Bad Request): Invalid column in Columns to Skip list.

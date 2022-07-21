@@ -14,8 +14,7 @@ import com.example.FileConverter.exceptions.BadDtoException;
 import com.example.FileConverter.exceptions.BadLinkException;
 import com.example.FileConverter.exceptions.ParserException;
 import com.example.FileConverter.exceptions.WrongFileFormatException;
-import com.example.FileConverter.odt.GetFileDto;
-import org.apache.commons.beanutils.BeanUtils;
+import com.example.FileConverter.dto.GetFileDto;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.io.FileUtils;
@@ -121,13 +120,13 @@ public class ConvertExcelToCSVService {
     private void convertFileToExcel(final GetFileDto getFileDto, String filename, String directory) {
 
 
-        final String desiredSheetsDelimited = getFileDto.getDesired_sheets();
-        final boolean formatValues = getFileDto.isFormat_values();
+        final String desiredSheetsDelimited = getFileDto.getDesiredSheets();
+        final boolean formatValues = getFileDto.isFormatValues();
 
         final CSVFormat csvFormat = createCSVFormat(getFileDto);
         //Switch to 0 based index
-        final int firstRow = getFileDto.getRow_to_skip()!= null ? Integer.parseInt(getFileDto.getRow_to_skip()) - 1 : -1;
-        final String[] sColumnsToSkip = split(getFileDto.getColumns_to_skip(), ",");
+        final int firstRow = getFileDto.getRowsToSkip()!= null ? Integer.parseInt(getFileDto.getRowsToSkip()) - 1 : -1;
+        final String[] sColumnsToSkip = split(getFileDto.getColumnsToSkip(), ",");
         final List<Integer> columnsToSkip = new ArrayList<>();
 
         if (sColumnsToSkip != null && sColumnsToSkip.length > 0) {
@@ -274,7 +273,7 @@ public class ConvertExcelToCSVService {
 
 
     private CSVFormat createCSVFormat(GetFileDto dto) throws BadDtoException {
-        String formatName = dto.getCsv_format() != null ? dto.getCsv_format() : "custom" ;
+        String formatName = dto.getCsvFormat() != null ? dto.getCsvFormat() : "custom" ;
         if (formatName.equalsIgnoreCase("custom")) {
             return buildCustomFormat(dto);
         } else if (formatName.equalsIgnoreCase("rfc-4180")) {
@@ -293,53 +292,53 @@ public class ConvertExcelToCSVService {
     }
     private CSVFormat buildCustomFormat(GetFileDto getFileDto) throws BadDtoException {
         try {
-            Character valueSeparator = getValueSeparatorCharUnescapedJava(getFileDto.getValue_separator());
+            Character valueSeparator = getValueSeparatorCharUnescapedJava(getFileDto.getValueSeparator());
             CSVFormat format = CSVFormat.newFormat(valueSeparator).withAllowMissingColumnNames().withIgnoreEmptyLines();
-            if (getFileDto.getFirst_line_is_header() == null || getFileDto.getFirst_line_is_header()) {
+            if (getFileDto.getFirstLineIsHeader() == null || getFileDto.getFirstLineIsHeader()) {
                 format = format.withFirstRecordAsHeader();
             }
 
-            Character quoteChar = getCharUnescaped(getFileDto.getQuote_char(), QUOTE_CHAR);
+            Character quoteChar = getCharUnescaped(getFileDto.getQuoteChar(), QUOTE_CHAR);
             format = format.withQuote(quoteChar);
             Character escapeChar;
-            if (getFileDto.getEscape_char() == null || getFileDto.getEscape_char().isEmpty()) {
+            if (getFileDto.getEscapeChar() == null || getFileDto.getEscapeChar().isEmpty()) {
                 escapeChar = null;
             } else {
-                escapeChar = getCharUnescaped(getFileDto.getEscape_char(), ESCAPE_CHAR);
+                escapeChar = getCharUnescaped(getFileDto.getEscapeChar(), ESCAPE_CHAR);
             }
             format = format.withEscape(escapeChar);
 
-            format = format.withTrim(getFileDto.getTrim_fields() == null || getFileDto.getTrim_fields());
-            if (getFileDto.getComment_maker() != null) {
-                Character commentMarker = getCharUnescaped(getFileDto.getComment_maker(), COMMENT_MARKER);
+            format = format.withTrim(getFileDto.getTrimFields() == null || getFileDto.getTrimFields());
+            if (getFileDto.getCommentMaker() != null) {
+                Character commentMarker = getCharUnescaped(getFileDto.getCommentMaker(), COMMENT_MARKER);
                 if (commentMarker != null) {
                     format = format.withCommentMarker(commentMarker);
                 }
             }
-            if (getFileDto.getNull_string() != null) {
-                format = format.withNullString(unescape(getFileDto.getNull_string()));
+            if (getFileDto.getNullString() != null) {
+                format = format.withNullString(unescape(getFileDto.getNullString()));
             }
 
-            if (getFileDto.getQuote_mode() != null && EnumUtils.isValidEnum(QuoteMode.class, getFileDto.getQuote_mode())
-                    && !getFileDto.getQuote_mode().equals("ALL_NON_NULL")) {
-                QuoteMode quoteMode = QuoteMode.valueOf(getFileDto.getQuote_mode());
+            if (getFileDto.getQuoteMode() != null && EnumUtils.isValidEnum(QuoteMode.class, getFileDto.getQuoteMode())
+                    && !getFileDto.getQuoteMode().equals("ALL_NON_NULL")) {
+                QuoteMode quoteMode = QuoteMode.valueOf(getFileDto.getQuoteMode());
                 format = format.withQuoteMode(quoteMode);
             } else {
                 format = format.withQuoteMode(QuoteMode.MINIMAL);
             }
-            format = format.withTrailingDelimiter(getFileDto.getTrailing_delimiter() != null &&
-                                                                            getFileDto.getTrailing_delimiter());
-            if (getFileDto.getRecord_separator() != null) {
-                String separator = unescape(getFileDto.getRecord_separator());
+            format = format.withTrailingDelimiter(getFileDto.getTrailingDelimiter() != null &&
+                                                                            getFileDto.getTrailingDelimiter());
+            if (getFileDto.getRecordSeparator() != null) {
+                String separator = unescape(getFileDto.getRecordSeparator());
                 format = format.withRecordSeparator(separator);
             } else {
                 format = format.withRecordSeparator("\n");
             }
-            format = format.withAllowDuplicateHeaderNames((getFileDto.getAllow_duplicate_header_names() == null ||
-                                                                            getFileDto.getAllow_duplicate_header_names()));
+            format = format.withAllowDuplicateHeaderNames((getFileDto.getAllowDuplicateHeaderNames() == null ||
+                                                                            getFileDto.getAllowDuplicateHeaderNames()));
             return format;
         } catch (Exception e){
-            throw new BadDtoException("Given parameters are incorrect!");
+            throw new BadDtoException("Some fields are filled in incorrectly (check README.md for more information).");
         }
 
     }
@@ -421,11 +420,27 @@ public class ConvertExcelToCSVService {
 
     private GetFileDto mapToDto(Map<String,String> map) throws BadDtoException {
         try {
-            GetFileDto getFileDto = GetFileDto.builder().url("MULTIPART_FILE").build();
-            BeanUtils.populate(getFileDto,map);
-            return getFileDto;
+             return GetFileDto.builder()
+             .url("none")
+             .desiredSheets(map.getOrDefault("desired_sheets", null))
+             .rowsToSkip(map.getOrDefault("rows_to_skip", "0"))
+             .columnsToSkip(map.getOrDefault("columns_to_skip", null))
+             .formatValues(Boolean.parseBoolean(map.getOrDefault("format_values", "false")))
+             .csvFormat(map.getOrDefault("csv_format", "CUSTOM"))
+             .valueSeparator(map.getOrDefault("value_separator", ","))
+             .firstLineIsHeader(Boolean.parseBoolean(map.getOrDefault("first_line_is_header", "true")))
+             .quoteChar(map.getOrDefault("quote_char", "\""))
+             .escapeChar(map.getOrDefault("escape_char", "\\"))
+             .commentMaker(map.getOrDefault("comment_maker", null))
+             .nullString(map.getOrDefault("null_string", null))
+             .trimFields(Boolean.parseBoolean(map.getOrDefault("trim_fields", "true")))
+             .quoteMode(map.getOrDefault("quote_mode", "MINIMAL"))
+             .recordSeparator(map.getOrDefault("record_separator", "\\n"))
+             .trailingDelimiter(Boolean.parseBoolean(map.getOrDefault("trailing_delimiter", "false")))
+             .allowDuplicateHeaderNames(Boolean.parseBoolean(map.getOrDefault("allow_duplicate_header_names", "true")))
+             .build();
         } catch (Exception e){
-            throw new BadDtoException("Given parameters are incorrect!");
+            throw new BadDtoException("Some fields are filled in incorrectly (check README.md for more information)");
         }
     }
 
