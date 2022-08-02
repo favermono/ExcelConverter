@@ -294,7 +294,7 @@ public class ConvertExcelToCSVService {
         try {
             Character valueSeparator = getValueSeparatorCharUnescapedJava(getFileDto.getValueSeparator());
             CSVFormat format = CSVFormat.newFormat(valueSeparator).withAllowMissingColumnNames().withIgnoreEmptyLines();
-            if (getFileDto.getFirstLineIsHeader() == null || getFileDto.getFirstLineIsHeader()) {
+            if (getFileDto.getIncludeHeader() == null || getFileDto.getIncludeHeader()) {
                 format = format.withFirstRecordAsHeader();
             }
 
@@ -428,13 +428,13 @@ public class ConvertExcelToCSVService {
              .formatValues(Boolean.parseBoolean(map.getOrDefault("format_values", "false")))
              .csvFormat(map.getOrDefault("csv_format", "CUSTOM"))
              .valueSeparator(map.getOrDefault("value_separator", ","))
-             .firstLineIsHeader(Boolean.parseBoolean(map.getOrDefault("first_line_is_header", "true")))
+             .includeHeader(Boolean.parseBoolean(map.getOrDefault("include_header", "true")))
              .quoteChar(map.getOrDefault("quote_char", "\""))
              .escapeChar(map.getOrDefault("escape_char", "\\"))
              .commentMaker(map.getOrDefault("comment_maker", null))
              .nullString(map.getOrDefault("null_string", null))
              .trimFields(Boolean.parseBoolean(map.getOrDefault("trim_fields", "true")))
-             .quoteMode(map.getOrDefault("quote_mode", "MINIMAL"))
+             .quoteMode(map.getOrDefault("quote_mode", "NONE"))
              .recordSeparator(map.getOrDefault("record_separator", "\\n"))
              .trailingDelimiter(Boolean.parseBoolean(map.getOrDefault("trailing_delimiter", "false")))
              .allowDuplicateHeaderNames(Boolean.parseBoolean(map.getOrDefault("allow_duplicate_header_names", "true")))

@@ -33,8 +33,8 @@ public class GetFileDto {
     /** Эти параметры используются только если CSV_FORMAT = "CUSTOM" */
     @JsonProperty("value_separator")
     private String valueSeparator;
-    @JsonProperty("first_line_is_header")
-    private Boolean firstLineIsHeader;
+    @JsonProperty("include_header")
+    private Boolean includeHeader;
     @JsonProperty("quote_char")
     private String quoteChar;
     @JsonProperty("escape_char")

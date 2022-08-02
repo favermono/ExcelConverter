@@ -23,7 +23,7 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
     private int currentCol = -1;
     private int rowCount = 0;
     private boolean rowHasValues = false;
-    private int skippedColumns = 0;
+    private int requiredColumns;
 
     private CSVPrinter printer;
 
@@ -64,7 +64,6 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
         currentRow = rowNum;
         currentCol = -1;
         rowHasValues = false;
-
         fieldValues = new ArrayList<>();
     }
 
@@ -76,6 +75,18 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
 
         if (firstRow) {
             readConfig.setLastColumn(currentCol);
+            for (int i = 0; i<readConfig.getColumnsToSkip().size();i++)
+            {
+                if ((readConfig.getColumnsToSkip().get(i) > currentCol) || readConfig.getColumnsToSkip().get(i) < readConfig.getFirstColumn()){
+                    readConfig.getColumnsToSkip().remove(i);
+                    i--;
+                }
+            }
+            requiredColumns = currentCol - readConfig.getFirstColumn() - readConfig.getColumnsToSkip().size() + 1;
+            if (!csvFormat.getSkipHeaderRecord()){
+                return;
+            }
+
         }
 
         //if there was no data in this row, don't write it
@@ -84,7 +95,7 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
         }
 
         // Ensure the correct number of columns
-        int columnsToAdd = (readConfig.getLastColumn() - currentCol) - readConfig.getColumnsToSkip().size();
+        int columnsToAdd = requiredColumns - fieldValues.size();
         for (int i = 0; i < columnsToAdd; i++) {
             fieldValues.add(null);
         }
@@ -94,7 +105,6 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         rowCount++;
     }
 
@@ -111,7 +121,6 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
 
         // Did we miss any cells?
         int thisCol = (new CellReference(cellReference)).getCol();
-
         // Should we skip this
 
         //Use the first row of the file to decide on the area of data to export
@@ -126,7 +135,6 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
         }
 
         if (readConfig.getColumnsToSkip().contains(thisCol)) {
-            skippedColumns++;
             return;
         }
 
@@ -136,21 +144,28 @@ public class SheetToCSV implements XSSFSheetXMLHandler.SheetContentsHandler {
             missedCols = (thisCol - readConfig.getFirstColumn());
         }
 
-        missedCols -= skippedColumns;
 
         if (firstCellOfRow) {
             firstCellOfRow = false;
         }
-
-        for (int i = 0; i < missedCols; i++) {
-            fieldValues.add(null);
+        if (!readConfig.getColumnsToSkip().isEmpty()){
+            for (int i = 0; i < missedCols; i++) {
+                if (!readConfig.getColumnsToSkip().contains(thisCol-i-1)){
+                    fieldValues.add(null);
+                }
+            }
         }
+        else {
+            for (int i = 0; i < missedCols; i++) {
+                    fieldValues.add(null);
+            }
+        }
+
         currentCol = thisCol;
 
         fieldValues.add(formattedValue);
 
         rowHasValues = true;
-        skippedColumns = 0;
     }
 
     @Override
